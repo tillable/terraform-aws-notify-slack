@@ -4,6 +4,9 @@ import urllib.request, urllib.parse
 import logging
 
 
+BLUE_COLOR_HEX_CODE = "#0000FF"
+
+
 # Decrypt encrypted URL with KMS
 def decrypt(encrypted_url):
     region = os.environ['AWS_REGION']
@@ -14,6 +17,40 @@ def decrypt(encrypted_url):
     except Exception:
         logging.exception("Failed to decrypt URL with KMS")
 
+
+def codepipeline_state_notification(message, region):
+    states = {
+        "STARTED": BLUE_COLOR_HEX_CODE,
+        "SUCCEEDED": "good",
+        "FAILED": "danger",
+        "RESUMED": BLUE_COLOR_HEX_CODE,
+    }
+
+    detail = message["detail"]
+    return {
+            "color": states.get(detail['state'], "danger"),
+            "fallback": "CodePipeline {}".format(detail['state']),
+            "fields": [
+                { "title": "Pipeline Name", "value": detail['pipeline'], "short": True },
+                { "title": "State", "value": detail['state'], "short": True },
+            ]
+        }
+
+
+def codepipeline_approval_notification(message, region):
+    payload = message["approval"]
+    return {
+            "color": BLUE_COLOR_HEX_CODE,
+            "fallback": "CodePipline manual approval required",
+            "fields": [
+                { "title": "Pipeline", "value": payload['pipelineName'], "short": True },
+                {
+                    "title": "Approval Review Link",
+                    "value": payload["approvalReviewLink"],
+                    "short": False
+                }
+            ]
+        }
 
 def cloudwatch_notification(message, region):
     states = {'OK': 'good', 'INSUFFICIENT_DATA': 'warning', 'ALARM': 'danger'}
@@ -68,6 +105,12 @@ def notify_slack(subject, message, region):
         notification = cloudwatch_notification(message, region)
         payload['text'] = "AWS CloudWatch notification - " + message["AlarmName"]
         payload['attachments'].append(notification)
+    elif message.get('detail-type') == "CodePipeline Pipeline Execution State Change":
+        payload['text'] = "AWS CodePipeline Status"
+        payload['attachments'].append(codepipeline_state_notification(message, region))
+    elif message.get('approval'):
+        payload['text'] = "AWS CodePipeline Approval Required"
+        payload['attachments'].append(codepipeline_approval_notification(message, region))
     else:
         payload['text'] = "AWS notification"
         payload['attachments'].append(default_notification(subject, message))
@@ -78,6 +121,7 @@ def notify_slack(subject, message, region):
 
 
 def lambda_handler(event, context):
+    print(event, context)
     subject = event['Records'][0]['Sns']['Subject']
     message = event['Records'][0]['Sns']['Message']
     region = event['Records'][0]['Sns']['TopicArn'].split(":")[3]
