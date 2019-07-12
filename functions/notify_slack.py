@@ -121,7 +121,6 @@ def notify_slack(subject, message, region):
 
 
 def lambda_handler(event, context):
-    print(event, context)
     subject = event['Records'][0]['Sns']['Subject']
     message = event['Records'][0]['Sns']['Message']
     region = event['Records'][0]['Sns']['TopicArn'].split(":")[3]
