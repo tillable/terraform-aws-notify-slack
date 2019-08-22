@@ -20,10 +20,11 @@ def decrypt(encrypted_url):
 
 def codepipeline_state_notification(message, region):
     states = {
-        "STARTED": BLUE_COLOR_HEX_CODE,
-        "SUCCEEDED": "good",
         "FAILED": "danger",
         "RESUMED": BLUE_COLOR_HEX_CODE,
+        "STARTED": BLUE_COLOR_HEX_CODE,
+        "SUCCEEDED": "good",
+        "SUPERSEDED": BLUE_COLOR_HEX_CODE,
     }
 
     detail = message["detail"]
